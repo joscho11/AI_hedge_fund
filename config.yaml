@@ -1,0 +1,52 @@
+# Single source of truth for the equity ranking system.
+# No magic numbers in scripts — everything tunable lives here.
+
+project:
+  name: equity-alpha
+  random_seed: 7
+
+universe:
+  name: sp500            # liquid large-cap; see DECISIONS.md
+  # Liquidity filters applied per rebalance date (computed as-of t, raw prices).
+  min_price: 5.0                 # USD
+  min_dollar_volume: 5_000_000   # 20-day median dollar volume, USD
+
+calendar:
+  exchange: XNYS         # NYSE trading calendar via exchange-calendars
+
+dates:
+  start: "2010-01-01"    # panel start
+  end: "2024-12-31"      # panel end
+  # The final hold-out is touched exactly once, at the very end (Phase 5).
+  holdout_start: "2022-01-01"
+
+label:
+  horizon_days: 63        # forward-return horizon H in trading days (~1 quarter)
+  rebalance: month_end    # monthly rebalance
+  # Label module emits three columns; primary chosen by the frozen rule in DECISIONS.md.
+  targets:
+    - fwd_ret_raw
+    - fwd_ret_excess_median
+    - fwd_ret_excess_sector
+
+availability:
+  # Fundamentals become usable this many TRADING days after their SEC filing date.
+  fundamental_lag_days: 1
+  # Macro series restricted to real-time / unrevised series unless ALFRED vintages wired.
+  macro_realtime_only: true
+
+costs:
+  # Applied to every backtested performance number; report gross and net.
+  commission_bps: 1.0        # per-side, basis points of notional
+  slippage_bps: 5.0          # per-side, basis points of notional
+  # Optional spread/impact model can extend this later.
+
+validation:
+  scheme: purged_walk_forward
+  train_window: expanding    # expanding | rolling
+  embargo_days: 63           # >= horizon_days to prevent overlap leakage
+  purge_days: 63             # purge train samples whose fwd window overlaps test
+
+paths:
+  cache_dir: data_cache
+  edgar_user_agent: "equity-alpha research joseph.schoenbaum@gmail.com"  # SEC requires a UA
