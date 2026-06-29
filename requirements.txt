@@ -16,6 +16,9 @@ scikit-learn>=1.4
 lightgbm>=4.1
 scipy>=1.11
 
+# Dashboard
+streamlit>=1.36
+
 # Dev
 pytest>=8.0
 ruff>=0.5
