@@ -62,13 +62,13 @@ def main():
     cfg = load_config()
     cache = ParquetCache(cfg.cache_path)
 
-    # ---- load panel ----
+    # ---- load panel (resolve to a concrete path so we can record provenance) ----
     panel_dir = cache.root / "panel"
     if args.panel:
-        panel = cache.get("panel", args.panel)
+        panel_path = panel_dir / f"{args.panel}.parquet"
     else:
-        newest = max(panel_dir.glob("panel_*.parquet"), key=lambda p: p.stat().st_mtime)
-        panel = pd.read_parquet(newest)
+        panel_path = max(panel_dir.glob("panel_*.parquet"), key=lambda p: p.stat().st_mtime)
+    panel = pd.read_parquet(panel_path)
     panel[COL_DATE] = pd.to_datetime(panel[COL_DATE])
     tickers = sorted(panel[COL_TICKER].unique())
     print(f"Panel: {len(panel):,} rows, {len(tickers)} tickers, "
@@ -100,9 +100,27 @@ def main():
     mom_res = run_backtest(scored[[COL_DATE, COL_TICKER, SIGNAL]], hpr,
                            TopFractionEqualWeight(frac=0.10), cost_bps=cost)
 
+    # ---- baseline 4: value (cheapest decile by earnings yield) — DEFERRED from Phase 2 (D7) ----
+    # Metric choice: earnings yield (inverse P/E). Robust, capital-structure-light, the canonical
+    # value factor; a single clean ratio rather than a blend. "Cheapest" = HIGHEST earnings yield.
+    val_res, val_scored = None, None
+    val_path = cache.root / "features" / "valuation.parquet"
+    if val_path.exists():
+        vf = pd.read_parquet(val_path)[[COL_DATE, COL_TICKER, "earnings_yield"]].dropna()
+        vf[COL_DATE] = pd.to_datetime(vf[COL_DATE])
+        val_scored = panel.merge(vf, on=[COL_DATE, COL_TICKER], how="inner")
+        val_sig = val_scored[[COL_DATE, COL_TICKER]].copy()
+        val_sig[SIGNAL] = val_scored["earnings_yield"]   # higher = cheaper -> top decile = cheapest
+        val_res = run_backtest(val_sig, hpr, TopFractionEqualWeight(frac=0.10), cost_bps=cost)
+    else:
+        print("  (valuation feature store missing — run scripts/phase3_valuation_features.py; "
+              "skipping value baseline)")
+
     # ---- align to common window for a fair headline table ----
     common = spy_res.net_returns.index.intersection(ew_res.net_returns.index).intersection(
         mom_res.net_returns.index)
+    if val_res is not None:
+        common = common.intersection(val_res.net_returns.index)
     print(f"Common comparison window: {common.min().date()}..{common.max().date()} ({len(common)} rebalances)")
 
     def perf(res):
@@ -116,7 +134,16 @@ def main():
 
     strategies = {"SPY (buy & hold)": spy_res, "Equal-weight universe": ew_res,
                   "12-1 Momentum (top decile)": mom_res}
+    if val_res is not None:
+        strategies["Value (cheapest decile)"] = val_res
     perf_stats = {name: perf(res) for name, res in strategies.items()}
+
+    # value baseline IC (earnings yield vs each target) for the report + dashboard
+    value_ic = {}
+    if val_scored is not None:
+        for tgt in TARGETS:
+            _, summ = information_coefficient(val_scored, "earnings_yield", tgt)
+            value_ic[tgt] = asdict(summ)
 
     # ---- momentum IC + quantiles vs all three targets ----
     ic_summ, ic_series, quants = {}, {}, {}
@@ -151,11 +178,23 @@ def main():
     (res_dir / "baseline_perf.json").write_text(json.dumps(perf_stats, indent=2))
     (res_dir / "momentum_ic.json").write_text(json.dumps(ic_summ, indent=2))
     (res_dir / "momentum_quantiles.json").write_text(json.dumps(quants, indent=2))
+    if value_ic:
+        (res_dir / "value_ic.json").write_text(json.dumps(value_ic, indent=2))
+    try:
+        panel_rel = str(panel_path.resolve().relative_to(REPO).as_posix())
+    except ValueError:
+        panel_rel = str(panel_path.resolve())
     meta = {
         "universe_size": len(tickers), "rebalances": int(len(reb)),
         "common_window": [str(common.min().date()), str(common.max().date()), len(common)],
         "one_way_cost_bps": cost, "survivorship_drift": SURVIVORSHIP_DRIFT,
         "cost_sensitivity_net_cagr": {str(k): v["cagr"] for k, v in sensitivity.items()},
+        # Provenance: the EXACT panel these results were computed from (so the dashboard never
+        # silently pairs page-2's universe with page-3's results from a different panel).
+        "panel_path": panel_rel,
+        "panel_rows": int(len(panel)),
+        "panel_names": int(len(tickers)),
+        "value_ic": value_ic,   # earnings-yield IC per target (empty if value baseline skipped)
         "caveat": CAVEAT,
     }
     (res_dir / "meta.json").write_text(json.dumps(meta, indent=2))
@@ -331,6 +370,17 @@ def _write_report(path, perf_stats, ic_summ, quants, sensitivity, meta, comparis
     L.append(drift_bullet)
     L.append(mom_bullet)
     L.append(cost_bullet)
+    # value baseline bullet (if present)
+    val_ic = meta.get("value_ic", {}).get("fwd_ret_excess_sector")
+    if "Value (cheapest decile)" in perf_stats and val_ic:
+        v = perf_stats["Value (cheapest decile)"]["net"]
+        L.append(
+            f"- **Value (cheapest decile by earnings yield) does NOT work on this sample:** earnings "
+            f"yield has a *negative* IC ({val_ic['mean_ic']:+.4f}, t {val_ic['t_stat']:+.2f}) — cheap "
+            f"stocks underperformed — so the value baseline (CAGR {_fmt(v['cagr'],1)}, Sharpe "
+            f"{_fmt(v['sharpe'])}) trails equal-weight. This is the 2010s value drought + survivorship "
+            "(today's index = growth winners), an honest regime/sample result. The sign may flip on a "
+            "point-in-time, delisting-inclusive universe.")
     L.append("")
 
     if comparison is not None:

@@ -11,6 +11,7 @@
 | SPY (buy & hold) | +13.48% | +13.48% | +14.28% | 0.961 | 1.403 | -23.93% | +69.09% | +0.00% | +0.00% |
 | Equal-weight universe | +16.94% | +16.98% | +15.50% | 1.093 | 1.523 | -23.94% | +67.88% | +2.71% | +4.57% |
 | 12-1 Momentum (top decile) | +21.35% | +21.87% | +17.99% | 1.173 | 1.876 | -21.36% | +68.48% | +30.41% | +87.51% |
+| Value (cheapest decile) | +15.69% | +15.95% | +20.63% | 0.816 | 1.037 | -40.71% | +65.45% | +15.59% | +23.10% |
 
 *Equal-weight vs SPY shows the survivorship drift directly; momentum must beat the best of these **after costs** to be real.*
 
@@ -19,6 +20,7 @@
 - **Survivorship drift is visible and material:** equal-weight universe CAGR +16.94% vs SPY +13.48% — a ~3pp/yr gap from holding *today's* survivors, consistent with the +4.3%/63d (~18%/yr) fingerprint. This is a measured bias, not alpha.
 - **Momentum's headline CAGR (+21.35%) overstates its edge.** Mean IC 0.004 (t = 0.283) is **not** statistically significant (|t| < 2) and below the 0.03–0.05 genuine-signal band; risk-adjusted, momentum's Sharpe (1.173) is above equal-weight (1.093), with deeper drawdown (-21.36%) and far higher turnover (+30.41%/reb). The decile spread is concentrated in the top decile rather than monotonic.
 - **Momentum is cost-robust** (net CAGR barely moves 5→20 bps): even ~30% monthly turnover × 20 bps is a small drag. So costs are *not* what holds momentum back here — weak, insignificant signal is.
+- **Value (cheapest decile by earnings yield) does NOT work on this sample:** earnings yield has a *negative* IC (-0.0190, t -1.93) — cheap stocks underperformed — so the value baseline (CAGR +15.69%, Sharpe 0.816) trails equal-weight. This is the 2010s value drought + survivorship (today's index = growth winners), an honest regime/sample result. The sign may flip on a point-in-time, delisting-inclusive universe.
 
 ## Sample vs full universe — do the conclusions hold?
 

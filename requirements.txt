@@ -10,6 +10,8 @@ requests>=2.31         # EDGAR + FRED raw HTTP
 yfinance>=0.2.40
 exchange-calendars>=4.5
 lxml>=5.0              # pandas.read_html for the S&P 500 constituent table
+nasdaq-data-link>=1.0  # Sharadar SF1/TICKERS/SP500/SEP (point-in-time fundamentals)
+duckdb>=1.0            # streaming CSV->parquet for the multi-GB Sharadar archive
 
 # Modeling (used from Phase 4)
 scikit-learn>=1.4

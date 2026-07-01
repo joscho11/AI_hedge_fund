@@ -12,14 +12,18 @@ from common import (
     fmt_pct,
     honesty_layer,
     init_page,
+    load_flattered_perf,
+    load_flattered_returns,
     load_meta,
     load_perf,
     load_panel,
     load_returns,
+    require_artifacts,
 )
 
 init_page("Universe explorer")
 honesty_layer()
+require_artifacts()
 
 st.title("Universe explorer")
 st.markdown(
@@ -49,26 +53,40 @@ sec = (panel.groupby("sector")["ticker"].nunique().sort_values(ascending=False)
        .rename("distinct names"))
 st.bar_chart(sec)
 
-# ---- survivorship drift, shown honestly ----
-st.subheader("The survivorship drift — a measured bias, not a result")
+# ---- survivorship drift: honest (default) vs flattered ('before') ----
+st.subheader("The survivorship drift — measured, then removed")
 st.markdown(
-    "Equal-weighting the *current* S&P 500 over history beats buying SPY — **not because the strategy "
-    "is good, but because today's index members are disproportionately the names that survived and "
-    "won.** This gap is *the cost of using survivors-only free data.* It is shown here so it can be "
-    "measured and subtracted, never celebrated."
+    "Equal-weighting the universe vs buying SPY isolates survivorship bias. On the **flattered** "
+    "(current-membership, survivors-only) universe, equal-weight beat SPY by a wide margin — not "
+    "skill, just holding the names that *survived and won*. On the **honest** universe (point-in-time "
+    "membership + delisted names, delisting-aware returns), that gap should largely disappear."
 )
+perf = load_perf()
+spy_cagr = perf["SPY (buy & hold)"]["net"]["cagr"]
+ew_cagr = perf["Equal-weight universe"]["net"]["cagr"]
+honest_drift = ew_cagr - spy_cagr
+
+fperf = load_flattered_perf()
+c1, c2 = st.columns(2)
+if fperf:
+    fdrift = fperf["Equal-weight universe"]["net"]["cagr"] - fperf["SPY (buy & hold)"]["net"]["cagr"]
+    c1.metric("Drift — flattered ('before')", fmt_pct(fdrift),
+              help="Equal-weight − SPY CAGR on the survivors-only universe.")
+    c2.metric("Drift — honest (now)", fmt_pct(honest_drift), delta=fmt_pct(honest_drift - fdrift),
+              help="Equal-weight − SPY CAGR on the point-in-time, delisting-inclusive universe.")
+else:
+    c1.metric("Survivorship drift (equal-weight − SPY)", fmt_pct(honest_drift))
+
+st.caption("Equity curves below are the **honest** universe (net of costs).")
 eq = equity_curves(load_returns(), "net_ret", start=meta["common_window"][0])
 drift_cols = [c for c in ["SPY (buy & hold)", "Equal-weight universe"] if c in eq.columns]
 st.line_chart(eq[drift_cols])
 
-perf = load_perf()
-spy_cagr = perf["SPY (buy & hold)"]["net"]["cagr"]
-ew_cagr = perf["Equal-weight universe"]["net"]["cagr"]
-st.metric("Survivorship drift (equal-weight − SPY, CAGR)", fmt_pct(ew_cagr - spy_cagr),
-          help="Reference per-period drift: raw forward return averages ~+4.3%/63d.")
-st.info(
-    "**Expected to shrink toward zero on point-in-time data.** On a survivorship-free dataset "
-    "(Sharadar SEP+SF1, which includes delisted names and historical index membership), the "
-    "equal-weight universe should no longer systematically out-earn the market by this margin. "
-    "Re-running here is a pending milestone; until then, treat every absolute return as upward-biased."
-)
+fret = load_flattered_returns()
+if fret is not None:
+    with st.expander("Show the 'before' (flattered) equity curves for comparison"):
+        feq = equity_curves(fret, "net_ret")
+        fcols = [c for c in ["SPY (buy & hold)", "Equal-weight universe"] if c in feq.columns]
+        st.line_chart(feq[fcols])
+        st.caption("Survivors-only universe — the equal-weight line pulls away from SPY purely from "
+                   "survivorship. Compare the gap to the honest chart above.")

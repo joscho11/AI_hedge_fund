@@ -9,10 +9,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import streamlit as st
 
-from common import experiment_count, honesty_layer, init_page, load_ic, load_meta
+from common import (
+    experiment_count,
+    honesty_layer,
+    init_page,
+    load_ic,
+    load_meta,
+    require_artifacts,
+)
 
 init_page("Overview")
 honesty_layer()
+require_artifacts()
 
 st.title("equity-alpha — research & explainability dashboard")
 st.markdown(

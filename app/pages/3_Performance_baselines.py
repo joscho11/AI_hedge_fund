@@ -23,10 +23,12 @@ from common import (
     load_perf,
     load_quantiles,
     load_returns,
+    require_artifacts,
 )
 
 init_page("Performance / baselines")
 honesty_layer()
+require_artifacts()
 
 st.title("Performance / baselines")
 meta = load_meta()
@@ -65,6 +67,18 @@ for name in STRATEGY_ORDER:
 st.dataframe(pd.DataFrame(rows).set_index("Strategy"), use_container_width=True)
 st.caption("Equal-weight vs SPY = the survivorship drift. Momentum must beat the best of these "
            "**after costs and with signal support** to count as real.")
+
+# Value baseline note (Sharadar earnings-yield) — present once Phase 3 value baseline is wired.
+_vic = meta.get("value_ic", {}).get("fwd_ret_excess_sector")
+if "Value (cheapest decile)" in perf and _vic:
+    _v = perf["Value (cheapest decile)"]["net"]
+    st.info(
+        f"**Value (cheapest decile by earnings yield):** CAGR {fmt_pct(_v['cagr'])}, "
+        f"Sharpe {fmt_num(_v['sharpe'],2)}. Its earnings-yield IC is **negative** "
+        f"({fmt_num(_vic['mean_ic'],4)}, t {fmt_num(_vic['t_stat'],2)}) — on this survivorship-"
+        "flattered 2010s universe, cheap stocks *underperformed* (the value drought). An honest "
+        "regime/sample result; the sign may flip on point-in-time, delisting-inclusive data."
+    )
 
 # ---------------------------------------------------------------- momentum IC
 st.subheader("12-1 Momentum — Information Coefficient (the real test)")

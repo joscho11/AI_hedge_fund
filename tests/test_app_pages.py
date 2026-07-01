@@ -34,3 +34,12 @@ def test_page_renders_without_exception(page):
     # Honesty layer present on every page (the warning banner).
     assert any("not investment advice" in w.value for w in at.warning), \
         f"{page.name} missing the honesty banner"
+
+
+def test_graceful_degradation_when_artifacts_missing(tmp_path, monkeypatch):
+    """With no results artifacts, the Overview page shows guidance and halts — no stack trace."""
+    monkeypatch.setenv("EQUITY_ALPHA_RESULTS_DIR", str(tmp_path / "empty"))
+    at = AppTest.from_file(str(APP / "main.py"), default_timeout=30).run()
+    assert not at.exception, f"degraded page raised: {at.exception}"
+    assert any("artifacts not found" in m.value.lower() for m in at.info), \
+        "expected the friendly 'artifacts not found' message"

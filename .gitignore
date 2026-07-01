@@ -1,3 +1,7 @@
+# Secrets — never commit API keys
+.env
+*.env
+
 # Python
 __pycache__/
 *.py[cod]
@@ -7,8 +11,11 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Data cache (re-fetchable; never commit raw vendor data)
+# Data cache (re-fetchable; never commit raw vendor data, panels, features, or results)
 data_cache/
+
+# Local licensed-data archive (Sharadar bundle; large + licensed — NEVER commit)
+data_archive/
 
 # Notebooks scratch
 .ipynb_checkpoints/
