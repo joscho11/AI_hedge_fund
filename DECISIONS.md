@@ -60,6 +60,105 @@ Scaled the validated Phase 1 pipeline to the full universe (**500/503 current S&
   forward, no strategy is accepted on portfolio performance alone without IC support + out-of-sample
   confirmation.** This is the project's core anti-overfitting guardrail made concrete.
 
+## D24 — Insider cluster buying (SF2) PRE-REGISTRATION
+**Date:** 2026-07-02
+
+Arena #5: multiple insiders making open-market purchases → market-adjusted drift after the Form 4s are
+public. Best structural prior left (Form 4 lag ~2 business days; multi-month drift → LOW turnover, so
+the ≥50 bps bar bites far less than momentum/PEAD). ONE cluster definition, ONE holding window — no sweep.
+
+- **Signal source:** SF2, **open-market purchases only — `transactioncode == 'P'`** (grants A, exercises
+  M, tax F, sales S are comp mechanics, not conviction, and dwarf real buys — including them nulls it).
+  Report SF2 code composition for transparency.
+- **Universe:** honest small-cap (D18), primary (insider signal strongest where coverage is thin); an
+  event is in-universe iff the ticker was a member at the most recent monthly rebalance ≤ entry.
+- **Cluster definition (frozen):** **≥2 distinct insiders** (distinct `ownername`) making code-P buys in
+  the same ticker within a **rolling 30-day window (by filing date)**, with **aggregate code-P purchase
+  value ≥ $50,000** in the window (drops trivial buys). One event per clustering episode.
+- **Entry (lookahead-guarded):** the **filing date that COMPLETES the cluster** (the 2nd distinct
+  insider's Form 4), **T+1** (next session, tradeable) — never the transaction date, never an earlier
+  filing. Tested: a later filing can't set an earlier entry.
+- **Holding window:** **126 trading days (~6 months)** primary (insider drift is multi-month); 63d
+  reported as secondary context, not the verdict.
+- **Returns:** archived SEP (delisting-aware), **market-adjusted** (−SPY from SFP). Cost sweep
+  **{25,30,50,100} bps round-trip**, **≥50 bps bar**; report turnover (multi-month hold = low turnover).
+- **Split:** development = `filingdate ≤ 2024-12-31`; **hold-out = 2025-01-01+ SEALED** (2022+ small-cap
+  already burned; develop ≤2024, reserve 2025+). Untouched unless dev warrants + Joseph approves.
+- **Consistency required** (not just mean), by sub-period. Arena #5 → discount any positive; only the
+  sealed hold-out settles it.
+
+## D23 — PEAD entry refinement: T+1 after the 8-K earnings announcement (one pre-committed change)
+**Date:** 2026-07-02
+
+The literature-motivated correction to D22: PEAD concentrates right after the earnings **announcement
+(8-K)**, which precedes the 10-Q `datekey` by days-to-weeks, so D22's datekey entry systematically
+misses the tradeable drift (downward-biased). ONE change, everything else carried from D22 unchanged
+(same SRW SUE, 63d window, honest small-cap universe, market adjustment, {25,30,50,100} bps round-trip
+sweep + ≥50 bps bar, DEV ≤2024 / 2025+ SEALED). No new signal, no sweep.
+
+**New entry rule:** entry = the **next trading session AFTER the EVENTS earnings-announcement date
+(code 22)** — i.e., **T+1**, which EXCLUDES the un-tradeable announcement-day jump (drift measured from
+T+1 close forward). Announcement matched to each firm-quarter as the earliest code-22 date in
+`(calendardate, datekey + 7d]`. **Events with no clean announcement date are EXCLUDED — no guessed
+fallback.** SUE uses **first-reported** ARQ eps (earliest datekey), assumed to equal the 8-K-announced
+number; later restatements are excluded by construction (validate the announcement precedes datekey;
+report the gap). **This is the SECOND entry-timing swing at the same signal in arena #4** → any positive
+is discounted, and only the sealed 2025+ hold-out settles it. **Consistency across sub-periods is
+required, not just magnitude** (D22's gross drift lurched by year).
+
+## D22 — PEAD (small-cap) PRE-REGISTRATION
+**Date:** 2026-07-02
+
+Arena #4: post-earnings-announcement drift in the honest small-cap universe. ONE surprise definition,
+ONE drift window — no sweeping. All from archived Sharadar (SF1 surprise, SEP returns, SFP market adj).
+
+- **Universe:** honest small-cap (D18) — an earnings event is in-universe iff its ticker was a member
+  at the most recent monthly rebalance ≤ entry date (applies the PIT cap+liquidity filter at event time).
+- **Surprise = seasonal-random-walk SUE (Bernard–Thomas, no estimates):** per firm-quarter,
+  `ΔEPS = eps_q − eps_{q−4}` using **first-reported** ARQ eps (earliest datekey per ticker×period),
+  standardized by the **trailing 8-quarter std of that firm's ΔEPS** (min 6). Cross-sectionally ranked
+  per monthly cohort.
+- **Entry / PIT rule (the load-bearing choice):** entry = **SF1 `datekey`** (the 10-Q filing date — the
+  date our source proves the EPS is public). EVENTS **code 22** (earnings 8-K) gives the true, earlier
+  announcement date, but entering there would use SF1 eps *before its datekey* = lookahead against our
+  data; so we conservatively enter at `datekey`. Entry is on/after the public date, never the fiscal
+  period-end (tested: a future filing can't set an earlier entry). *Conservatism note:* datekey entry
+  misses the initial post-8-K reaction, so this is a HARD (late) test of residual drift.
+- **Drift window:** 60 trading days from entry.
+- **Returns:** archived SEP (delisting-aware), **market-adjusted** (−SPY from archived SFP over the same
+  window). Raw + adjusted reported; adjusted is the verdict.
+- **Costs:** one-way sweep **{25,30,50,100} bps**, charged **round-trip (2×)** per event (enter+exit);
+  **≥50 bps bar** — PEAD trades every season (high turnover), so this is the real question.
+- **Split:** development = `datekey ≤ 2024-12-31`; **hold-out = `datekey ≥ 2025-01-01` SEALED** (freshest
+  never-examined slice; the 2022+ small-cap hold-out is already burned so develop only on ≤2024, reserve
+  2025+). Hold-out untouched unless dev warrants + Joseph approves.
+
+## D21 — Congress Phase A v3 PRE-REGISTRATION (clustering + member persistence)
+**Date:** 2026-07-02
+
+Two hypotheses on the cached full history (57,730 txns). Arena #3 + several sub-tests → high
+multiple-comparisons risk; anything positive must survive OOS and be read against the attempt count.
+Shared: entry = **disclosure date**, buys only, US common equity, forward returns **market-adjusted**
+(−SPY from archived SFP) from archived SEP (delisting-aware). **Development = disclosure_date ≤ 2022-12-31;
+hold-out 2023-01-01+ SEALED** (untouched unless a dev result warrants it AND Joseph approves).
+
+**Test 1 — Clustering (ONE frozen definition):** a cluster = **≥3 distinct members disclose a BUY in the
+same ticker within a rolling 30-day window** (by disclosure date). **Lookahead guard:** entry is the
+disclosure date that COMPLETES the cluster (the 3rd distinct member's disclosure) — never an earlier
+trade/disclosure (a cluster isn't knowable until its Nth disclosure is public). One event per clustering
+episode (fires when trailing-30d distinct-member count first hits 3; re-arms after it drops below 3).
+Report the **cluster-event count FIRST** — too few = underpowered (that's the finding). Compare cluster-
+completing entries vs isolated buys, market-adjusted 21d/63d, by sub-period.
+
+**Test 2 — Individual-member persistence (NOT a leaderboard):** min **≥25 realized buys total** to be
+ranked, AND **≥10 in each** of P1/P2 for a stable split. **P1 = 2014-2018, P2 = 2019-2022.** Rank members
+by P1 market-adjusted disclosure-date 63d mean; test (a) Spearman rank corr of per-member P1 vs P2
+performance, (b) whether P1 top-quintile members outperform (market-adjusted) in P2. **Pre-committed
+interpretation:** if performance does NOT persist (corr ≈ 0, top-P1 flat in P2) → member "edge" is
+selection noise, no one worth following. Only if it DOES persist is a "follow top-N-from-dev members"
+strategy tested once on the sealed 2023+ hold-out (with approval). Report N qualifying members (the
+effective sample — likely small, itself informative).
+
 ## D20 — Full Sharadar bundle archived locally (subscription cancellable)
 **Date:** 2026-06-30
 
